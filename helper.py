@@ -7,7 +7,7 @@ from dateutil import tz
 
 
 # Helper function for formatting timestamps for humans
-def format_time(time_string, precise=False):
+def format_time(time_string, precise=True):
     # Ensure it's a string
     time_string = str(time_string)
 
@@ -24,7 +24,9 @@ def format_time(time_string, precise=False):
 
     # Print a precise, but human readable string if precise is true
     if precise:
-        return datetime_object.strftime("%I:%M:%S %p %d/%m/%Y")
+        datetime_object = datetime_object.replace(tzinfo=tz.tzutc())
+        datetime_object = datetime_object.astimezone(tz.tzlocal())
+        return datetime_object.strftime("%Y-%m-%d %H:%M:%S")
 
     # Now for comparison
     now = datetime.datetime.now()
