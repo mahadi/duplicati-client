@@ -11,6 +11,8 @@ import requests
 from subprocess import Popen, PIPE
 from datetime import datetime
 from pathlib import Path
+from functools import reduce
+from enum import Flag
 
 from dateutil.relativedelta import relativedelta
 
@@ -30,6 +32,13 @@ PARAMETERS_FILE = Path.home() / '.config/duplicati-client/parameters.yml'
 
 BASEDIR = Path(__file__).parent
 CONFIG_FILE = BASEDIR / 'config.yml'
+
+# Result state
+class Result(Flag):
+    OK = 0
+    NOK = 1
+    PENDING = 2
+    INITIAL = 4
 
 with open(CONFIG_FILE) as f:
     config = yaml.safe_load(f)
@@ -112,16 +121,17 @@ def verify_backup(name, backup_data):
     NOW = datetime.now()
     limit_date_in_past = NOW - relativedelta(**deltas)
 
-    # check if there is one successfull run within the planned schedule time back from now
-    # https://github.com/Pectojin/duplicati-client/issues/16
-    # "last run is only considering successful runs. If the backup doesn't complete it's not considered run."
-    last_run = datetime.strptime(data['Last run']['Started'], "%Y-%m-%d %H:%M:%S")
-    if last_run > limit_date_in_past:
-        result = "OK"
+    if 'Progress' in data and data['Progress']['State'] == 'Backup_ProcessingFiles':
+        result = Result.PENDING
     else:
-        result = "FAILED"
-
-    # todo pending backup
+        # check if there is one successfull run within the planned schedule time back from now
+        # https://github.com/Pectojin/duplicati-client/issues/16
+        # "last run is only considering successful runs. If the backup doesn't complete it's not considered run."
+        last_run = datetime.strptime(data['Last run']['Started'], "%Y-%m-%d %H:%M:%S")
+        if last_run > limit_date_in_past:
+            result = Result.OK
+        else:
+            result = Result.NOK
 
     return result
 
@@ -151,11 +161,31 @@ def main():
 
     call(f'{DUCCMD} logout')
 
+
+    # binary or to all results
+    combined_status = reduce(lambda x, y: x | y, results.values())
+
+    overall_status = Result.INITIAL.value
+    if all(v == Result.OK for v in results.values()):
+        overall_status = Result.OK.value
+    else:
+        priorities = [
+            Result.PENDING,
+            Result.NOK
+        ]
+        # the last element in the priority list has the highest prio
+        # -> if the bit is set, the overall status will take its value
+        for p in priorities:
+            if combined_status & p:
+                overall_status = p.value
+
     # use integer values for influxdb (and grafana visualization)
-    overall_status = 1 if all(v == 'OK' for v in results.values()) else 0
+    # overall_status = 1 if all(v == 'OK' for v in results.values()) else 0
     text_map = {
         0: "NOK",
-        1: "OK"
+        1: "OK",
+        2: "PENDING",
+        4: "INITIAL",  # was never run before
     }
     logger.info(f"Overall status: {text_map[overall_status]}")
 
