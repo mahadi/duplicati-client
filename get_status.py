@@ -165,9 +165,9 @@ def main():
     # binary or to all results
     combined_status = reduce(lambda x, y: x | y, results.values())
 
-    overall_status = Result.INITIAL.value
+    overall_status = Result.INITIAL
     if all(v == Result.OK for v in results.values()):
-        overall_status = Result.OK.value
+        overall_status = Result.OK
     else:
         priorities = [
             Result.PENDING,
@@ -177,23 +177,16 @@ def main():
         # -> if the bit is set, the overall status will take its value
         for p in priorities:
             if combined_status & p:
-                overall_status = p.value
+                overall_status = p
 
-    # use integer values for influxdb (and grafana visualization)
-    # overall_status = 1 if all(v == 'OK' for v in results.values()) else 0
-    text_map = {
-        0: "NOK",
-        1: "OK",
-        2: "PENDING",
-        4: "INITIAL",  # was never run before
-    }
-    logger.info(f"Overall status: {text_map[overall_status]}")
+    logger.info(f"Overall status: {overall_status.name}")
 
     # put status to influx
+    # use integer values for influxdb (and grafana visualization)
     response = requests.post(
         f'http://{DB_HOST}:8086/write?db={DB}&precision=s',
         auth=(DB_USERNAME, DB_PASSWORD),
-        data=f'duplicati_overall_backup_status value={overall_status}'
+        data=f'duplicati_overall_backup_status value={overall_status.value}'
     )
     logger.debug(response.status_code)
     if response.status_code in [requests.codes.ok, requests.codes.no_content]:
