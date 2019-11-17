@@ -123,7 +123,7 @@ def verify_backup(name, backup_data):
 
     if 'Progress' in data and data['Progress']['State'] == 'Backup_ProcessingFiles':
         result = Result.PENDING
-    else:
+    elif 'Last run' in data and data['Last run']['Started'] is not None:
         # check if there is one successfull run within the planned schedule time back from now
         # https://github.com/Pectojin/duplicati-client/issues/16
         # "last run is only considering successful runs. If the backup doesn't complete it's not considered run."
@@ -132,6 +132,8 @@ def verify_backup(name, backup_data):
             result = Result.OK
         else:
             result = Result.NOK
+    else:
+        result = Result.INITIAL
 
     return result
 
