@@ -1,5 +1,19 @@
 # Duplicati client
-Version 0.4.21 beta
+Version 0.4.25 beta
+
+## 0.4.25 beta (c2dd672)
+
+Added an option to backup export command to avoid exporting passwords"
+
+## 0.4.24 beta (ee8721f)
+
+Reworked export command to export data as an entire backup object identical to the Duplicati webui export. This removes the separate "backup" and "serversettings" types.
+
+Switched default output type of the export command to be json to ensure compatibility with the Duplicati import function.
+
+## 0.4.22 beta (fd37ee4)
+
+Fixed an issue exporting backups with `--all` parameter, Thanks @avmaksimov
 
 ## 0.4.21 beta (20c7c27)
 
